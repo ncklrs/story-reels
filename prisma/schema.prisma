@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model VideoJob {
+  id              String    @id @default(uuid())
+  storyboardId    String
+  sceneId         String
+  provider        String    // 'sora' | 'veo'
+  status          String    // 'pending' | 'processing' | 'completed' | 'failed'
+  prompt          String    @db.Text
+  providerJobId   String?
+  videoUrl        String?   @db.Text
+  thumbnailUrl    String?   @db.Text
+  cost            Decimal?  @db.Decimal(10, 4)
+  errorMessage    String?   @db.Text
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+  metadata        Json?
+
+  storyboard Storyboard? @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+
+  @@index([storyboardId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("video_jobs")
+}
+
+model UserApiKey {
+  id            String    @id @default(uuid())
+  userId        String    // Will be session ID for now, or user ID later
+  provider      String    // 'sora' | 'veo'
+  encryptedKey  String    @db.Text
+  keyHash       String    // SHA-256 hash for verification
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([keyHash])
+  @@map("user_api_keys")
+}
+
+model Storyboard {
+  id          String   @id @default(uuid())
+  userId      String?  // Optional - for guest users
+  name        String
+  presetKey   String
+  character   Json     // CharacterProfile JSON
+  scenes      Json     // Scene[] JSON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  videoJobs VideoJob[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("storyboards")
+}
+
+model CompiledVideo {
+  id              String   @id @default(uuid())
+  storyboardId    String
+  scenesOrder     Json     // Array of scene IDs in order
+  finalVideoUrl   String?  @db.Text
+  durationSeconds Int?
+  fileSizeBytes   BigInt?
+  status          String   @default("pending") // 'pending' | 'processing' | 'completed' | 'failed'
+  errorMessage    String?  @db.Text
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+  metadata        Json?
+
+  @@index([storyboardId])
+  @@index([createdAt])
+  @@map("compiled_videos")
+}
