@@ -15,7 +15,8 @@ export interface VideoGenerationJobData {
   sceneId: string;
   provider: 'sora' | 'veo';
   prompt: string;
-  apiKey: string;
+  sessionToken: string; // Session token instead of API key for security
+  providerJobId?: string; // Provider's job ID (Sora/Veo job ID)
   model: string;
   size?: string;
   resolution?: string;

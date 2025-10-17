@@ -7,7 +7,8 @@ import { addVideoGenerationJob } from '@/lib/queue';
 import { validateRequest, videoGenerateRequestSchema } from '@/lib/validation';
 import { getApiKeyFromSession } from '@/app/api/auth/session/route';
 import { applyRateLimit, videoGenerationLimiter, createRateLimitHeaders, getRateLimitIdentifier, checkRateLimit } from '@/lib/ratelimit';
-import { createVideoJob } from '@/lib/repositories/videoJobs';
+import { createVideoJob, updateVideoJob } from '@/lib/repositories/videoJobs';
+import { createSession } from '@/lib/apiKeySession';
 
 /**
  * POST /api/video/generate
@@ -64,19 +65,32 @@ export async function POST(request: NextRequest) {
       prompt,
     });
 
-    // Add job to queue
-    await addVideoGenerationJob({
-      jobId,
-      storyboardId,
-      sceneId: scene.id,
-      provider,
-      prompt,
-      apiKey,
-      model,
-      size: provider === 'sora' ? '1280x720' : undefined,
-      resolution: provider === 'veo' ? '720p' : undefined,
-      duration: scene.duration
-    });
+    // Create session token to store API key securely (not in Redis/job data)
+    const projectId = provider === 'veo' ? process.env.GOOGLE_CLOUD_PROJECT_ID : undefined;
+    const sessionToken = createSession(apiKey, provider, projectId);
+
+    // Add job to queue with error handling
+    try {
+      await addVideoGenerationJob({
+        jobId,
+        storyboardId,
+        sceneId: scene.id,
+        provider,
+        prompt,
+        sessionToken, // Use session token instead of raw API key
+        model,
+        size: provider === 'sora' ? '1280x720' : undefined,
+        resolution: provider === 'veo' ? '720p' : undefined,
+        duration: scene.duration
+      });
+    } catch (queueError: any) {
+      // Queue operation failed - mark job as failed in database
+      await updateVideoJob(jobId, {
+        status: 'failed',
+        errorMessage: 'Failed to queue job for processing',
+      });
+      throw new Error('Failed to queue job for processing. Please try again.');
+    }
 
     // Get rate limit info for headers
     const identifier = getRateLimitIdentifier(request);

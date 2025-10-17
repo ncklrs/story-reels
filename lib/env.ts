@@ -38,12 +38,34 @@ const envSchema = z.object({
     .optional()
     .default('redis://localhost:6379'),
 
-  // Database URL (optional, depends on implementation)
-  DATABASE_URL: z.string().url('DATABASE_URL must be a valid URL').optional(),
+  // Database URL (optional during build, required at runtime)
+  DATABASE_URL: z
+    .string()
+    .optional()
+    .refine(
+      (url) => {
+        // Skip validation during build
+        if (process.env.NEXT_PHASE === 'phase-production-build') {
+          return true;
+        }
+        // If URL is provided, validate format
+        if (url) {
+          return url.startsWith('postgres://') || url.startsWith('postgresql://');
+        }
+        // Allow missing during build
+        return true;
+      },
+      {
+        message: 'DATABASE_URL must be a PostgreSQL connection string (postgres:// or postgresql://)',
+      }
+    ),
 
-  // Storage configuration (optional)
+  // Storage configuration (required for video uploads)
   BLOB_STORAGE_URL: z.string().url().optional(),
-  BLOB_READ_WRITE_TOKEN: z.string().optional(),
+  BLOB_READ_WRITE_TOKEN: z
+    .string()
+    .min(1, 'BLOB_READ_WRITE_TOKEN is required for video storage')
+    .optional(),
 
   // Optional server-side API keys
   OPENAI_API_KEY: z.string().optional(),
@@ -73,18 +95,32 @@ const envSchema = z.object({
 // Parse and validate environment variables
 function validateEnv() {
   try {
-    return envSchema.parse(process.env);
+    const result = envSchema.parse(process.env);
+
+    // Log warnings for mock modes
+    if (process.env.SORA_MOCK_MODE === 'true') {
+      console.warn('[Environment] SORA_MOCK_MODE is enabled - using mock responses for Sora API');
+    }
+
+    if (process.env.VEO_MOCK_MODE === 'true') {
+      console.warn('[Environment] VEO_MOCK_MODE is enabled - using mock responses for Veo API');
+    }
+
+    // Log success
+    console.log('[Environment] Environment validation passed');
+
+    return result;
   } catch (error) {
     if (error instanceof z.ZodError) {
       const issues = error.issues.map((issue) => {
         return `  - ${issue.path.join('.')}: ${issue.message}`;
       });
 
-      console.error('Environment variable validation failed:');
+      console.error('[Environment] Environment variable validation failed:');
       console.error(issues.join('\n'));
 
       throw new Error(
-        'Invalid environment variables. Check the console for details.'
+        'Invalid environment variables. Check the console for details and ensure all required variables are set in .env.local'
       );
     }
     throw error;

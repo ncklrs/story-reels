@@ -45,6 +45,7 @@ export type Scene = {
 
 export type Storyboard = {
   id: string;
+  userId?: string; // Optional - for guest users vs authenticated users
   presetKey: string;
   character: CharacterProfile;
   scenes: Scene[];
@@ -101,4 +102,52 @@ export interface CompiledVideo {
   durationSeconds?: number;
   fileSizeBytes?: number;
   createdAt: Date;
+}
+
+/**
+ * API Response types for Sora and Veo integrations
+ */
+export interface SoraAPIResponse {
+  id: string;
+  status: string;
+  video_url?: string;
+  thumbnail_url?: string;
+  output?: {
+    url?: string;
+    thumbnail?: string;
+  };
+  error?: {
+    message: string;
+    code?: string;
+    type?: string;
+  };
+}
+
+export interface VeoAPIResponse {
+  name: string; // Operation name
+  done: boolean;
+  error?: {
+    code: number;
+    message: string;
+    status: string;
+  };
+  response?: {
+    videos?: Array<{
+      gcsUri?: string;
+      url?: string;
+      mimeType?: string;
+    }>;
+    raiMediaFilteredReasons?: string[];
+  };
+}
+
+/**
+ * Mock job types for development/testing
+ */
+export interface MockJob {
+  id: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  startTime: number;
+  prompt: string;
+  model: string;
 }
