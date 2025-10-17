@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # Redis for BullMQ
+  redis:
+    image: redis:7-alpine
+    container_name: ai-video-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ai-video-network
+
+  # Video generation worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: ai-video-worker
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Redis
+      REDIS_URL: redis://redis:6379
+
+      # Database
+      DATABASE_URL: ${DATABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+
+      # Storage
+      BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN}
+
+      # API Keys (optional server-side defaults)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID}
+
+      # Encryption
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+      # Worker config
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    restart: unless-stopped
+    networks:
+      - ai-video-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('./workers/health-check').healthCheckCLI()"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  # Redis Commander (optional - for debugging)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: ai-video-redis-commander
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - ai-video-network
+    profiles:
+      - debug
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  ai-video-network:
+    driver: bridge
