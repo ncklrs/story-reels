@@ -271,6 +271,7 @@ export async function isStoryboardOwner(
 function convertPrismaStoryboardToType(storyboard: any): Storyboard {
   return {
     id: storyboard.id,
+    userId: storyboard.userId || undefined, // Include userId for authorization checks
     presetKey: storyboard.presetKey,
     character: storyboard.character as CharacterProfile,
     scenes: storyboard.scenes as Scene[],

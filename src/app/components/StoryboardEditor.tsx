@@ -16,9 +16,12 @@ import ApiKeySettings from './ApiKeySettings';
 import GuestBanner from './GuestBanner';
 import LoadModal from './LoadModal';
 import SceneTemplateSelector, { SCENE_TEMPLATES } from './SceneTemplateSelector';
+import AuthModal from './AuthModal';
+import UserMenu from './UserMenu';
 import { useToast } from './ToastContext';
 import { useSafeLocalStorage } from '@/app/hooks/useSafeLocalStorage';
 import { usePolling } from '@/app/hooks/usePolling';
+import { NoScenesYet } from './EmptyStates';
 
 const DEFAULT_STORYBOARD: Storyboard = {
   id: uuidv4(),
@@ -108,6 +111,15 @@ export default function StoryboardEditor() {
     } finally {
       setSaving(false);
     }
+  }, [showToast]);
+
+  /**
+   * Handle user sign out
+   */
+  const handleSignOut = useCallback(() => {
+    setUser(null);
+    showToast('Signed out successfully', 'success');
+    // TODO: Clear session/auth state with actual auth provider
   }, [showToast]);
 
   /**
@@ -541,6 +553,8 @@ export default function StoryboardEditor() {
         onTemplatesClick={handleTemplatesClick}
         onExportClick={handleExportClick}
         onLoadClick={() => setShowLoadModal(true)}
+        user={user}
+        onSignOut={handleSignOut}
       />
 
       {/* Main Editor */}
@@ -609,18 +623,22 @@ export default function StoryboardEditor() {
 
         {/* Scenes Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Scenes</h2>
-            <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-xl font-semibold text-white" id="scenes-heading">
+              Scenes
+            </h2>
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => setShowSceneTemplateSelector(true)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 text-sm sm:text-base"
+                aria-label="Insert scene template"
               >
                 Insert Template
               </button>
               <button
                 onClick={addScene}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 text-sm sm:text-base"
+                aria-label="Add new scene"
               >
                 + Add Scene
               </button>
@@ -629,18 +647,20 @@ export default function StoryboardEditor() {
 
           {/* Scenes list */}
           {storyboard.scenes.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-12 text-center">
-              <p className="text-gray-500">No scenes yet. Click "Add Scene" or "Insert Template" to get started.</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg">
+              <NoScenesYet onAddScene={addScene} />
             </div>
           ) : (
-            <DraggableSceneList
-              scenes={storyboard.scenes}
-              onScenesReorder={reorderScenes}
-              onSceneUpdate={updateScene}
-              onSceneDelete={deleteScene}
-              onSceneGenerate={generateVideo}
-              onSceneDuplicate={duplicateScene}
-            />
+            <div role="region" aria-labelledby="scenes-heading">
+              <DraggableSceneList
+                scenes={storyboard.scenes}
+                onScenesReorder={reorderScenes}
+                onSceneUpdate={updateScene}
+                onSceneDelete={deleteScene}
+                onSceneGenerate={generateVideo}
+                onSceneDuplicate={duplicateScene}
+              />
+            </div>
           )}
         </div>
 
@@ -677,6 +697,16 @@ export default function StoryboardEditor() {
         isOpen={showSceneTemplateSelector}
         onClose={() => setShowSceneTemplateSelector(false)}
         onSelectTemplate={handleSelectSceneTemplate}
+      />
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={(user) => {
+          setUser(user);
+          setShowAuthModal(false);
+          showToast(`Welcome, ${user.name}!`, 'success');
+        }}
       />
     </div>
   );

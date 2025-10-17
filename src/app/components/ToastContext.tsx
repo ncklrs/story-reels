@@ -162,7 +162,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
   };
 
   return (
-    <div className={getToastStyles()} role="alert">
+    <div className={getToastStyles()} role="alert" aria-live="polite" aria-atomic="true">
       {getIcon()}
       <div className="flex-1 text-sm font-medium">{toast.message}</div>
       <button

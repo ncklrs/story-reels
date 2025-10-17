@@ -1,5 +1,7 @@
 'use client';
 
+import UserMenu from './UserMenu';
+
 interface ActionBarProps {
   scenesCount: number;
   totalDuration: number;
@@ -12,6 +14,8 @@ interface ActionBarProps {
   onTemplatesClick: () => void;
   onExportClick: () => void;
   onLoadClick: () => void;
+  user?: any;
+  onSignOut?: () => void;
 }
 
 export default function ActionBar({
@@ -26,6 +30,8 @@ export default function ActionBar({
   onTemplatesClick,
   onExportClick,
   onLoadClick,
+  user,
+  onSignOut,
 }: ActionBarProps) {
   const needsGeneration = pendingScenes > 0;
   const allGenerated = totalScenes > 0 && completedScenes === totalScenes;
@@ -220,6 +226,11 @@ export default function ActionBar({
                 <path d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
               </svg>
             </button>
+
+            {/* User menu (if authenticated) */}
+            {user && onSignOut && (
+              <UserMenu user={user} onSignOut={onSignOut} />
+            )}
           </div>
         </div>
       </div>
