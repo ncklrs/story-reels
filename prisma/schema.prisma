@@ -60,7 +60,8 @@ model Storyboard {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  videoJobs VideoJob[]
+  videoJobs       VideoJob[]
+  compiledVideos  CompiledVideo[]
 
   @@index([userId])
   @@index([createdAt])
@@ -79,6 +80,8 @@ model CompiledVideo {
   createdAt       DateTime @default(now())
   completedAt     DateTime?
   metadata        Json?
+
+  storyboard Storyboard @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
 
   @@index([storyboardId])
   @@index([createdAt])

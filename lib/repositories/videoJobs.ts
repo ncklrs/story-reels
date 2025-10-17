@@ -1,6 +1,7 @@
 import { prisma } from '../db';
 import { VideoJob, VideoJobStatus, VideoProvider } from '../types';
 import { createLogger } from '../logger';
+import { Prisma } from '@prisma/client';
 
 /**
  * Database repository for video jobs
@@ -8,6 +9,33 @@ import { createLogger } from '../logger';
  */
 
 const logger = createLogger({ module: 'videoJobs' });
+
+/**
+ * Helper function to handle Prisma errors with user-friendly messages
+ */
+function handlePrismaError(error: any, context: string): Error {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    // P2002: Unique constraint violation
+    if (error.code === 'P2002') {
+      logger.error(`Duplicate entry in ${context}`, { error: error.message });
+      return new Error('A job with this ID already exists');
+    }
+    // P2003: Foreign key constraint violation
+    if (error.code === 'P2003') {
+      logger.error(`Invalid reference in ${context}`, { error: error.message });
+      return new Error('Invalid storyboard ID');
+    }
+    // P2025: Record not found
+    if (error.code === 'P2025') {
+      logger.error(`Record not found in ${context}`, { error: error.message });
+      return new Error('Job not found');
+    }
+  }
+
+  // Generic error for unknown cases
+  logger.error(`Failed: ${context}`, { error: error instanceof Error ? error.message : 'Unknown error' });
+  return new Error('Database operation failed. Please try again.');
+}
 
 export interface CreateVideoJobData {
   id?: string;
@@ -52,8 +80,7 @@ export async function createVideoJob(data: CreateVideoJobData): Promise<VideoJob
     logger.info('Video job created', { jobId: job.id, provider: job.provider });
     return mapDatabaseJobToVideoJob(job);
   } catch (error: any) {
-    logger.error('Failed to create video job', { error: error.message });
-    throw new Error(`Failed to create video job: ${error.message}`);
+    throw handlePrismaError(error, 'createVideoJob');
   }
 }
 
@@ -68,8 +95,7 @@ export async function getVideoJob(jobId: string): Promise<VideoJob | null> {
 
     return job ? mapDatabaseJobToVideoJob(job) : null;
   } catch (error: any) {
-    logger.error('Failed to get video job', { jobId, error: error.message });
-    throw new Error(`Failed to get video job: ${error.message}`);
+    throw handlePrismaError(error, 'getVideoJob');
   }
 }
 
